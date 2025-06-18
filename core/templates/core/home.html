@@ -1,0 +1,36 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-4 mb-4">Welcome to Resume Matcher</h1>
+    <p class="lead mb-4">Upload multiple resumes and match them against job descriptions to find the best candidates.</p>
+    <a href="{% url 'upload_resumes' %}" class="btn btn-primary btn-lg">Start Matching</a>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Upload Resumes</h5>
+                <p class="card-text">Upload multiple resumes in PDF or DOCX format.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Job Description</h5>
+                <p class="card-text">Paste the job description to match against resumes.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Get Results</h5>
+                <p class="card-text">View ranked results and download matching resumes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

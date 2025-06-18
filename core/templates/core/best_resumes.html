@@ -1,0 +1,240 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="best-resumes">
+    <h2 class="mb-4">Best Matching Resumes</h2>
+    
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Job Description</h5>
+                    <p class="card-text">{{ job_description.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filters mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minScore">Minimum Total Score</label>
+                    <input type="number" class="form-control" id="minScore" min="0" max="100" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minSkills">Minimum Skills Score</label>
+                    <input type="number" class="form-control" id="minSkills" min="0" max="40" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minEducation">Minimum Education Score</label>
+                    <input type="number" class="form-control" id="minEducation" min="0" max="30" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minExperience">Minimum Experience Score</label>
+                    <input type="number" class="form-control" id="minExperience" min="0" max="30" value="0">
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Rank</th>
+                    <th>Resume Name</th>
+                    <th>Total Score</th>
+                    <th>Skills Score</th>
+                    <th>Education Score</th>
+                    <th>Experience Score</th>
+                    <th>Context Score</th>
+                    <th>Skills</th>
+                    <th>Education</th>
+                    <th>Experience</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="resumesTableBody">
+                {% for resume in resumes %}
+                <tr data-total-score="{{ resume.score }}" 
+                    data-skill-score="{{ resume.skill_score }}"
+                    data-education-score="{{ resume.education_score }}"
+                    data-experience-score="{{ resume.experience_score }}">
+                    <td>
+                        <input type="checkbox" class="resume-select" value="{{ resume.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ resume.name }}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ resume.score }}%">
+                                {{ resume.score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ resume.skill_score }}%">
+                                {{ resume.skill_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ resume.education_score }}%">
+                                {{ resume.education_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ resume.experience_score }}%">
+                                {{ resume.experience_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ resume.context_score }}%">
+                                {{ resume.context_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ resume.skills }}</td>
+                    <td>{{ resume.education }}</td>
+                    <td>{{ resume.experience }}</td>
+                    <td>
+                        <a href="{% url 'download_resume' resume.id %}" class="btn btn-sm btn-primary">Download</a>
+                        <button class="btn btn-sm btn-success" onclick="markAsBest({{ resume.id }})">Mark as Best</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="selected-actions mt-4">
+        <button class="btn btn-primary" onclick="downloadSelected()">Download Selected</button>
+        <button class="btn btn-success" onclick="markSelectedAsBest()">Mark Selected as Best</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyFilters() {
+    const minTotal = parseFloat(document.getElementById('minScore').value) || 0;
+    const minSkills = parseFloat(document.getElementById('minSkills').value) || 0;
+    const minEducation = parseFloat(document.getElementById('minEducation').value) || 0;
+    const minExperience = parseFloat(document.getElementById('minExperience').value) || 0;
+
+    const rows = document.querySelectorAll('#resumesTableBody tr');
+    rows.forEach(row => {
+        const totalScore = parseFloat(row.dataset.totalScore);
+        const skillScore = parseFloat(row.dataset.skillScore);
+        const educationScore = parseFloat(row.dataset.educationScore);
+        const experienceScore = parseFloat(row.dataset.experienceScore);
+
+        const show = totalScore >= minTotal &&
+                    skillScore >= minSkills &&
+                    educationScore >= minEducation &&
+                    experienceScore >= minExperience;
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function resetFilters() {
+    document.getElementById('minScore').value = 0;
+    document.getElementById('minSkills').value = 0;
+    document.getElementById('minEducation').value = 0;
+    document.getElementById('minExperience').value = 0;
+    
+    const rows = document.querySelectorAll('#resumesTableBody tr');
+    rows.forEach(row => row.style.display = '');
+}
+
+function markAsBest(resumeId) {
+    fetch(`/mark-best/${resumeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Resume marked as best match!');
+        }
+    });
+}
+
+function markSelectedAsBest() {
+    const selected = Array.from(document.querySelectorAll('.resume-select:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert('Please select at least one resume');
+        return;
+    }
+
+    fetch('/mark-best-multiple/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resume_ids: selected })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Selected resumes marked as best matches!');
+        }
+    });
+}
+
+function downloadSelected() {
+    const selected = Array.from(document.querySelectorAll('.resume-select:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert('Please select at least one resume');
+        return;
+    }
+
+    selected.forEach(id => {
+        window.open(`/download/${id}/`, '_blank');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,214 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Resume Matcher</h2>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Upload Resumes</h5>
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="resumes">Select Resumes (PDF or DOCX)</label>
+                            <input type="file" class="form-control-file" id="resumes" name="resumes" multiple accept=".pdf,.docx" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="jobDescription">Job Description</label>
+                            <textarea class="form-control" id="jobDescription" name="job_description" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Match Resumes</button>
+                        <a href="{% url 'selected_resumes' %}" class="btn btn-success">View Selected Resumes</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div id="results" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Matching Results</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Resume Name</th>
+                                        <th>Total Score</th>
+                                        <th>Skills Score</th>
+                                        <th>Education Score</th>
+                                        <th>Experience Score</th>
+                                        <th>Context Score</th>
+                                        <th>Details</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for displaying details -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Resume Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Education</h6>
+                        <div id="modalEducation"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Experience</h6>
+                        <div id="modalExperience"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="errorAlert" class="alert alert-danger" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    <span id="errorMessage"></span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const resultsDiv = document.getElementById('results');
+    const resultsTableBody = document.getElementById('resultsTableBody');
+    const errorAlert = document.getElementById('errorAlert');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    // Hide previous error
+    errorAlert.style.display = 'none';
+    
+    // Show loading state
+    resultsDiv.style.display = 'none';
+    resultsTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Processing resumes...</td></tr>';
+    
+    fetch('/upload/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            errorMessage.textContent = data.error;
+            errorAlert.style.display = 'block';
+            return;
+        }
+        
+        resultsTableBody.innerHTML = '';
+        data.results.forEach(result => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${result.name}</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: ${result.total_score}%">
+                            ${result.total_score}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: ${result.skill_score}%">
+                            ${result.skill_score}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: ${result.education_score}%">
+                            ${result.education_score}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-danger" role="progressbar" style="width: ${result.experience_score}%">
+                            ${result.experience_score}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: ${result.context_score}%">
+                            ${result.context_score}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="showDetails('${result.education}', '${result.experience}')">View Details</button>
+                </td>
+                <td>
+                    <a href="/download/${result.id}/" class="btn btn-sm btn-primary">Download</a>
+                    <button class="btn btn-sm btn-success" onclick="markAsBest(${result.id})">Mark as Best</button>
+                </td>
+            `;
+            resultsTableBody.appendChild(row);
+        });
+        
+        resultsDiv.style.display = 'block';
+    })
+    .catch(error => {
+        errorMessage.textContent = 'An error occurred while processing the resumes';
+        errorAlert.style.display = 'block';
+    });
+});
+
+function showDetails(education, experience) {
+    document.getElementById('modalEducation').innerHTML = education.split('|').map(edu => `<p>${edu}</p>`).join('');
+    document.getElementById('modalExperience').innerHTML = experience.split('|').map(exp => `<p>${exp}</p>`).join('');
+    $('#detailsModal').modal('show');
+}
+
+function markAsBest(resumeId) {
+    fetch(`/mark-best/${resumeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Resume marked as best match!');
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

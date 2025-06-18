@@ -1,0 +1,323 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Selected Best Resumes</h2>
+    
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Job Description</h5>
+                    <p class="card-text">{{ job_description.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filters mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minScore">Minimum Total Score</label>
+                    <input type="number" class="form-control" id="minScore" min="0" max="100" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minSkills">Minimum Skills Score</label>
+                    <input type="number" class="form-control" id="minSkills" min="0" max="40" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minEducation">Minimum Education Score</label>
+                    <input type="number" class="form-control" id="minEducation" min="0" max="30" value="0">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label for="minExperience">Minimum Experience Score</label>
+                    <input type="number" class="form-control" id="minExperience" min="0" max="30" value="0">
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                <a href="{% url 'upload_resumes' %}" class="btn btn-info">Upload More Resumes</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Rank</th>
+                    <th>Resume Name</th>
+                    <th>Total Score</th>
+                    <th>Skills Score</th>
+                    <th>Education Score</th>
+                    <th>Experience Score</th>
+                    <th>Context Score</th>
+                    <th>Skills</th>
+                    <th>Details</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="resumesTableBody">
+                {% for resume in resumes %}
+                <tr data-total-score="{{ resume.score }}" 
+                    data-skill-score="{{ resume.skill_score }}"
+                    data-education-score="{{ resume.education_score }}"
+                    data-experience-score="{{ resume.experience_score }}"
+                    {% if resume.is_best_match %}class="table-success"{% endif %}>
+                    <td>
+                        <input type="checkbox" class="resume-select" value="{{ resume.id }}">
+                    </td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ resume.name }}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ resume.score }}%">
+                                {{ resume.score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ resume.skill_score }}%">
+                                {{ resume.skill_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ resume.education_score }}%">
+                                {{ resume.education_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ resume.experience_score }}%">
+                                {{ resume.experience_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ resume.context_score }}%">
+                                {{ resume.context_score }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ resume.skills }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="showDetails('{{ resume.education|escapejs }}', '{{ resume.experience|escapejs }}')">View Details</button>
+                    </td>
+                    <td>
+                        <a href="{% url 'download_resume' resume.id %}" class="btn btn-sm btn-primary">Download</a>
+                        {% if not resume.is_best_match %}
+                        <button class="btn btn-sm btn-success" onclick="markAsBest({{ resume.id }})">Mark as Best</button>
+                        {% else %}
+                        <button class="btn btn-sm btn-warning" onclick="unmarkAsBest({{ resume.id }})">Unmark as Best</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="selected-actions mt-4">
+        <button class="btn btn-primary" onclick="downloadSelected()">Download Selected</button>
+        <button class="btn btn-success" onclick="markSelectedAsBest()">Mark Selected as Best</button>
+        <button class="btn btn-danger" onclick="removeSelected()">Remove Selected</button>
+    </div>
+</div>
+
+<!-- Modal for displaying details -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Resume Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Education</h6>
+                        <div id="modalEducation"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Experience</h6>
+                        <div id="modalExperience"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showDetails(education, experience) {
+    document.getElementById('modalEducation').innerHTML = education.split('|').map(edu => `<p>${edu}</p>`).join('');
+    document.getElementById('modalExperience').innerHTML = experience.split('|').map(exp => `<p>${exp}</p>`).join('');
+    $('#detailsModal').modal('show');
+}
+
+function applyFilters() {
+    const minTotal = parseFloat(document.getElementById('minScore').value) || 0;
+    const minSkills = parseFloat(document.getElementById('minSkills').value) || 0;
+    const minEducation = parseFloat(document.getElementById('minEducation').value) || 0;
+    const minExperience = parseFloat(document.getElementById('minExperience').value) || 0;
+
+    const rows = document.querySelectorAll('#resumesTableBody tr');
+    rows.forEach(row => {
+        const totalScore = parseFloat(row.dataset.totalScore);
+        const skillScore = parseFloat(row.dataset.skillScore);
+        const educationScore = parseFloat(row.dataset.educationScore);
+        const experienceScore = parseFloat(row.dataset.experienceScore);
+
+        const show = totalScore >= minTotal &&
+                    skillScore >= minSkills &&
+                    educationScore >= minEducation &&
+                    experienceScore >= minExperience;
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function resetFilters() {
+    document.getElementById('minScore').value = 0;
+    document.getElementById('minSkills').value = 0;
+    document.getElementById('minEducation').value = 0;
+    document.getElementById('minExperience').value = 0;
+    
+    const rows = document.querySelectorAll('#resumesTableBody tr');
+    rows.forEach(row => row.style.display = '');
+}
+
+function markAsBest(resumeId) {
+    fetch(`/mark-best/${resumeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function unmarkAsBest(resumeId) {
+    fetch(`/unmark-best/${resumeId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function markSelectedAsBest() {
+    const selected = Array.from(document.querySelectorAll('.resume-select:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert('Please select at least one resume');
+        return;
+    }
+
+    fetch('/mark-best-multiple/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resume_ids: selected })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function removeSelected() {
+    const selected = Array.from(document.querySelectorAll('.resume-select:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert('Please select at least one resume');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to remove the selected resumes?')) {
+        return;
+    }
+
+    fetch('/remove-resumes/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resume_ids: selected })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function downloadSelected() {
+    const selected = Array.from(document.querySelectorAll('.resume-select:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert('Please select at least one resume');
+        return;
+    }
+
+    selected.forEach(id => {
+        window.open(`/download/${id}/`, '_blank');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 
