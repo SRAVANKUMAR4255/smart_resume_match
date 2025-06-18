@@ -1,0 +1,5 @@
+# Enforce LF in the repository, convert to native endings on checkout
+* text=auto
+
+# If you want *everything* to be LF everywhere (even on Windows):
+# * text eol=lf
